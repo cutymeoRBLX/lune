@@ -12,7 +12,7 @@ env:
 jobs:
   init:
     name: Init
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     outputs:
       version: ${{ steps.get_version.outputs.value }}
     steps:
@@ -35,26 +35,37 @@ jobs:
             runner-os: windows-latest
             artifact-name: lune-${{ needs.init.outputs.version }}-windows-x86_64
             cargo-target: x86_64-pc-windows-msvc
+            cargo-features: reqwest/rustls-tls
+
+          - name: Windows aarch64
+            runner-os: windows-latest
+            artifact-name: lune-${{ needs.init.outputs.version }}-windows-aarch64
+            cargo-target: aarch64-pc-windows-msvc
+            cargo-features: reqwest/default-tls
 
           - name: Linux x86_64
-            runner-os: ubuntu-latest
+            runner-os: ubuntu-20.04
             artifact-name: lune-${{ needs.init.outputs.version }}-linux-x86_64
             cargo-target: x86_64-unknown-linux-gnu
+            cargo-features: reqwest/rustls-tls
 
           - name: Linux aarch64
-            runner-os: ubuntu-latest
+            runner-os: ubuntu-20.04
             artifact-name: lune-${{ needs.init.outputs.version }}-linux-aarch64
             cargo-target: aarch64-unknown-linux-gnu
+            cargo-features: reqwest/rustls-tls
 
           - name: macOS x86_64
             runner-os: macos-latest
             artifact-name: lune-${{ needs.init.outputs.version }}-macos-x86_64
             cargo-target: x86_64-apple-darwin
+            cargo-features: reqwest/rustls-tls
 
           - name: macOS aarch64
             runner-os: macos-latest
             artifact-name: lune-${{ needs.init.outputs.version }}-macos-aarch64
             cargo-target: aarch64-apple-darwin
+            cargo-features: reqwest/rustls-tls
 
     name: Build - ${{ matrix.name }}
     runs-on: ${{ matrix.runner-os }}
@@ -79,7 +90,8 @@ jobs:
         run: |
           cargo build \
           --locked --release --all-features \
-          --target ${{ matrix.cargo-target }}
+          --target ${{ matrix.cargo-target }} \
+          --features ${{ matrix.cargo-features }}
 
       - name: Create binary archive
         shell: bash
@@ -104,7 +116,7 @@ jobs:
 
   release:
     name: Release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: ["init", "build"]
     steps:
       - name: Download binaries
