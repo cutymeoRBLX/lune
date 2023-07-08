@@ -7,10 +7,13 @@ use rbx_xml::{
 mod error;
 mod format;
 mod kind;
+mod postprocessing;
 
 pub use error::*;
 pub use format::*;
 pub use kind::*;
+
+use postprocessing::*;
 
 use crate::instance::{data_model, Instance};
 
@@ -249,6 +252,8 @@ impl Document {
             data_model_child.clone_into_external_dom(&mut dom);
         }
 
+        postprocess_dom_for_place(&mut dom);
+
         Ok(Self {
             kind: DocumentKind::Place,
             format: DocumentFormat::default(),
@@ -273,6 +278,8 @@ impl Document {
         for instance in v {
             instance.clone_into_external_dom(&mut dom);
         }
+
+        postprocess_dom_for_model(&mut dom);
 
         Ok(Self {
             kind: DocumentKind::Model,
