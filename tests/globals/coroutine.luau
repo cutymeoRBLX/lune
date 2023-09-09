@@ -1,5 +1,3 @@
-local task = require("@lune/task")
-
 -- Coroutines should return true, ret values OR false, error
 
 local function pass()
@@ -55,7 +53,9 @@ local success2 = coroutine.resume(thread2)
 assert(success1 == false, "Coroutine resume on dead coroutines should return false")
 assert(success2 == false, "Coroutine resume on dead coroutines should return false")
 
--- Wait should work inside native lua coroutines
+-- Task library wait should work inside native lua coroutines
+
+local task = require("@lune/task")
 
 local flag: boolean = false
 coroutine.resume(coroutine.create(function()
@@ -74,3 +74,13 @@ end)()
 assert(not flag2, "Wait failed while inside wrap (1)")
 task.wait(0.2)
 assert(flag2, "Wait failed while inside wrap (2)")
+
+-- Coroutines should be passed arguments on initial resume
+
+local co = coroutine.create(function(a, b, c)
+	assert(a == 1)
+	assert(b == "Hello, world!")
+	assert(c == true)
+end)
+
+coroutine.resume(co, 1, "Hello, world!", true)

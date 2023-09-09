@@ -10,11 +10,192 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Added [Terrain:GetMaterialColor](https://create.roblox.com/docs/reference/engine/classes/Terrain#GetMaterialColor) and [Terrain:SetMaterialColor](https://create.roblox.com/docs/reference/engine/classes/Terrain#SetMaterialColor) ([#93])
+- Added support for a variable number of arguments for CFrame methods ([#85])
+
+[#93]: https://github.com/filiptibell/lune/pull/93
+[#85]: https://github.com/filiptibell/lune/pull/85
+
+## `0.7.7` - August 23rd, 2023
+
+### Added
+
+- Added a [REPL](https://en.wikipedia.org/wiki/Read–eval–print_loop) to Lune. ([#83])
+
+  This allows you to run scripts within Lune without writing files!
+
+  Example usage, inside your favorite terminal:
+
+  ```bash
+  # 1. Run the Lune executable, without any arguments
+  lune
+
+  # 2. You will be shown the current Lune version and a blank prompt arrow:
+  Lune v0.7.7
+  >
+
+  # 3. Start typing, and hit enter when you want to run your script!
+  #    Your script will run until completion and output things along the way.
+  > print(2 + 3)
+  5
+  > print("Hello, lune changelog!")
+  Hello, lune changelog!
+
+  # 4. You can also set variables that will get preserved between runs.
+  #    Note that local variables do not get preserved here.
+  > myVariable = 123
+  > print(myVariable)
+  123
+
+  # 5. Press either of these key combinations to exit the REPL:
+  #    - Ctrl + D
+  #    - Ctrl + C
+  ```
+
+- Added a new `luau` built-in library for manually compiling and loading Luau source code. ([#82])
+
+  Example usage:
+
+  ```lua
+  local luau = require("@lune/luau")
+
+  local bytecode = luau.compile("print('Hello, World!')")
+  local callableFn = luau.load(bytecode)
+
+  callableFn()
+
+  -- Additionally, we can skip the bytecode generation and
+  -- load a callable function directly from the code itself.
+  local callableFn2 = luau.load("print('Hello, World!')")
+
+  callableFn2()
+  ```
+
+### Changed
+
+- Update to Luau version `0.591`
+- Lune's internal task scheduler and `require` functionality has been completely rewritten. <br/>
+  The new scheduler is much more stable, conforms to a larger test suite, and has a few additional benefits:
+
+  - Built-in libraries are now lazily loaded, meaning nothing gets allocated until the built-in library gets loaded using `require("@lune/builtin-name")`. This also improves startup times slightly.
+  - Spawned processes using `process.spawn` now run on different thread(s), freeing up resources for the main thread where luau runs.
+  - Serving requests using `net.serve` now processes requests on background threads, also freeing up resources. In the future, this will also allow us to offload heavy tasks such as compression/decompression to background threads.
+  - Groundwork for custom / user-defined require aliases has been implemented, as well as absolute / cwd-relative requires. These will both be exposed as options and be made available to use some time in the future.
+
+- When using the `serde` built-in library, keys are now sorted during serialization. This means that the output of `encode` is now completely deterministic, and wont cause issues when committing generated files to git etc.
+
 ### Fixed
 
-- Fixed crashes when writing a very deeply nested `Instance` to a file ([#62])
+- Fixed not being able to pass arguments to the thread using `coroutine.resume`. ([#86])
+- Fixed a large number of long-standing issues, from the task scheduler rewrite:
+
+  - Fixed `require` hanging indefinitely when the module being require-d uses an async function in its main body.
+  - Fixed background tasks (such as `net.serve`) not keeping Lune alive even if there are no lua threads to run.
+  - Fixed spurious panics and error messages such as `Tried to resume next queued future but none are queued`.
+  - Fixed not being able to catch non-string errors properly, errors were accidentally being wrapped in an opaque `userdata` type.
+
+[#82]: https://github.com/filiptibell/lune/pull/82
+[#83]: https://github.com/filiptibell/lune/pull/83
+[#86]: https://github.com/filiptibell/lune/pull/86
+
+## `0.7.6` - August 9th, 2023
+
+### Changed
+
+- Update to Luau version `0.588`
+- Enabled Luau JIT backend for potential performance improvements 🚀 <br/>
+  If you run into any strange behavior please open an issue!
+
+### Fixed
+
+- Fixed publishing of the Lune library to `crates.io`
+- Fixed `serde.decode` deserializing `null` values as `userdata` instead of `nil`.
+- Fixed not being able to require files with multiple extensions, eg. `module.spec.luau` was not require-able using `require("module.spec")`.
+- Fixed instances and `roblox` built-in library APIs erroring when used asynchronously/concurrently.
+
+## `0.7.5` - July 22nd, 2023
+
+### Added
+
+- Lune now has a new documentation site! </br>
+  This addresses new APIs from version `0.7.0` not being available on the docs site, brings much improved searching functionality, and will help us keep documentation more up-to-date going forward with a more automated process. You can check out the new site at [lune-org.github.io](https://lune-org.github.io/docs).
+
+- Added `fs.copy` to recursively copy files and directories.
+
+  Example usage:
+
+  ```lua
+  local fs = require("@lune/fs")
+
+  fs.writeDir("myCoolDir")
+  fs.writeFile("myCoolDir/myAwesomeFile.json", "{}")
+
+  fs.copy("myCoolDir", "myCoolDir2")
+
+  assert(fs.isDir("myCoolDir2"))
+  assert(fs.isFile("myCoolDir2/myAwesomeFile.json"))
+  assert(fs.readFile("myCoolDir2/myAwesomeFile.json") == "{}")
+  ```
+
+- Added `fs.metadata` to get metadata about files and directories.
+
+  Example usage:
+
+  ```lua
+  local fs = require("@lune/fs")
+
+  fs.writeFile("myAwesomeFile.json", "{}")
+
+  local meta = fs.metadata("myAwesomeFile.json")
+
+  print(meta.exists) --> true
+  print(meta.kind) --> "file"
+  print(meta.createdAt) --> 1689848548.0577152 (unix timestamp)
+  print(meta.permissions) --> { readOnly: false }
+  ```
+
+- Added `roblox.getReflectionDatabase` to access the builtin database containing information about classes and enums.
+
+  Example usage:
+
+  ```lua
+  local roblox = require("@lune/roblox")
+
+  local db = roblox.getReflectionDatabase()
+
+  print("There are", #db:GetClassNames(), "classes in the reflection database")
+
+  print("All base instance properties:")
+
+  local class = db:GetClass("Instance")
+  for name, prop in class.Properties do
+  	print(string.format(
+  		"- %s with datatype %s and default value %s",
+  		prop.Name,
+  		prop.Datatype,
+  		tostring(class.DefaultProperties[prop.Name])
+  	))
+  end
+  ```
+
+- Added support for running directories with an `init.luau` or `init.lua` file in them in the CLI.
+
+### Changed
+
+- Update to Luau version `0.583`
+
+### Fixed
+
+- Fixed publishing of Lune to crates.io by migrating away from a monorepo.
+- Fixed crashes when writing a very deeply nested `Instance` to a file. ([#62])
+- Fixed not being able to read & write to WebSocket objects at the same time. ([#68])
+- Fixed tab character at the start of a script causing it not to parse correctly. ([#72])
 
 [#62]: https://github.com/filiptibell/lune/pull/62
+[#68]: https://github.com/filiptibell/lune/pull/66
+[#72]: https://github.com/filiptibell/lune/pull/72
 
 ## `0.7.4` - July 7th, 2023
 
@@ -43,7 +224,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- The `lune --setup` command is now much more user-friendly
+- The `lune --setup` command is now much more user-friendly.
 - Update to Luau version `0.581`
 
 ## `0.7.1` - June 17th, 2023
@@ -196,7 +377,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Added support for instance tags & `CollectionService` in the `roblox` built-in. <br />
-  Currently implemented methods are listed on the [docs site](https://lune.gitbook.io/lune/roblox/api-status).
+  Currently implemented methods are listed on the [docs site](https://lune-org.github.io/docs/roblox/4-api-status).
 
 ### Fixed
 
@@ -234,7 +415,7 @@ This release adds some new features and fixes for the `roblox` built-in.
 - Added a `roblox` built-in
 
   If you're familiar with [Remodel](https://github.com/rojo-rbx/remodel), this new built-in contains more or less the same APIs, integrated into Lune. <br />
-  There are just too many new APIs to list in this changelog, so head over to the [docs sit](https://lune.gitbook.io/lune/roblox/intro) to learn more!
+  There are just too many new APIs to list in this changelog, so head over to the [docs sit](https://lune-org.github.io/docs/roblox/1-introduction) to learn more!
 
 - Added a `serde` built-in
 
